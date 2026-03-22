@@ -36,3 +36,4 @@ inngest.fast_api.serve(app, inngest_client, [my_function])
 
 
 # you can run the application by doing: uvicorn main:app
+# you can then run inngest cli via: npx cli@latest dev -u http://127.0.0.1:8000/api/inngest

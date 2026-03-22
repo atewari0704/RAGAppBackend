@@ -1,3 +1,7 @@
 fastapi
 inngest
 python-dotenv
+qdrant_client
+llama-index-core
+llama-index-readers-file
+sentence-transformers
