@@ -50,10 +50,30 @@ async def rag_ingest_pdf(ctx: inngest.Context):
     return ingested.model_dump() #converts pydantic object to dict so that it can be serialized and sent as response
 
 
+@inngest_client.create_function(
+    fn_id="RAG: Query PDF",
+    trigger=inngest.TriggerEvent(event="rag/query"),
+)
+async def rag_query(ctx: inngest.Context):
+    def _search(question,top_k) -> RAGSearchResult:
+        query_vec = embed_texts([question])[0]
+        store = QdrantStorage()
+        found = store.search(query_vec,top_k) # based on the query it returns relevants chunks(vectors) from the pdf intially uploaded
+        return RAGSearchResult(contexts=found["contexts"], sources=found["sources"])
+    
+    question = ctx.event.data["question"]
+    top_k = ctx.event.data.get("top_k", 5)
+
+    found = await ctx.step.run("search", lambda:_search(question, top_k), output_type=RAGSearchResult)
+
+    return found.model_dump()
+
+
+
 app = FastAPI()
 
 # Serve the Inngest endpoint
-inngest.fast_api.serve(app, inngest_client, [rag_ingest_pdf])
+inngest.fast_api.serve(app, inngest_client, [rag_ingest_pdf, rag_query])
 
 
 

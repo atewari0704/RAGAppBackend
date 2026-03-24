@@ -16,26 +16,29 @@ class QdrantStorage:
     # to update or insert you must have PoinStructs which consist of id, vector and the payload
     def upsert(self, ids, vectors, payloads):
         points = [PointStruct(id=ids[i], vector=vectors[i], payload=payloads[i]) for i in range(len(ids))]
-        self.client.upsert(self.collection, points=points)
+        self.client.upsert(collection_name=self.collection, points=points)
 
 
     def search(self, query_vector, top_k=5):
-        results =  self.client.search(
+        
+        response = self.client.query_points(
             collection_name=self.collection,
-            query_vector=query_vector,
+            query=query_vector,
             limit=top_k,
             with_payload=True,
         )
+        results = response.points or []
 
         contexts = []
         sources = set()
 
         for r in results:
-            payload = getattr(r, "payload", None) or {}
+            payload = r.payload or {}
             text = payload.get("text", "")
             source = payload.get("source", "")
             if text:
                 contexts.append(text)
-                sources.add(source)
+                if source:
+                    sources.add(source)
 
-        return {"contexts": contexts, "sources": list(sources)}
+        return {"contexts": contexts, "sources": sorted(sources)}
