@@ -1,5 +1,5 @@
 import logging
-from fastapi import FastAPI
+from fastapi import FastAPI, UploadFile, File, HTTPException
 import uvicorn
 import inngest
 import inngest.fast_api
@@ -107,6 +107,34 @@ async def rag_query(ctx: inngest.Context):
 
 
 app = FastAPI()
+
+
+UPLOAD_DIR = "uploads"
+
+
+@app.post("/upload-pdf")
+async def upload_pdf(file: UploadFile = File(...)):
+    if file.content_type != "application/pdf":
+        raise HTTPException(status_code=400, detail="Only PDF files are allowed")
+    
+    if not file.filename.lower().endswith(".pdf"):
+        raise HTTPException(status_code=400, detail="File must have a .pdf extension")
+
+    os.makedirs(UPLOAD_DIR, exist_ok=True)
+
+    file_path = os.path.join(UPLOAD_DIR, file.filename)
+
+    content = await file.read()
+    with open(file_path, "wb") as f:
+        f.write(content)
+
+    return {
+        "pdf_path": file_path,
+        "source_id": file.filename,
+    }
+
+
+
 
 # Serve the Inngest endpoint
 inngest.fast_api.serve(app, inngest_client, [rag_ingest_pdf, rag_query])

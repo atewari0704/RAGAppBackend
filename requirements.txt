@@ -7,3 +7,4 @@ llama-index-core
 llama-index-readers-file
 llama-index
 google-genai
+python-multipart
