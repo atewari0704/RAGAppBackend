@@ -5,6 +5,7 @@ import inngest
 import inngest.fast_api
 from inngest.experimental import ai
 from dotenv import load_dotenv
+from google import genai
 import uuid
 import os
 import datetime
@@ -60,14 +61,49 @@ async def rag_query(ctx: inngest.Context):
         store = QdrantStorage()
         found = store.search(query_vec,top_k) # based on the query it returns relevants chunks(vectors) from the pdf intially uploaded
         return RAGSearchResult(contexts=found["contexts"], sources=found["sources"])
+
+    def _answer_with_gemini(question: str, found: RAGSearchResult) -> RAGQueryResult:
+        api_key = os.getenv("GEMINI_API_KEY")
+
+        if not api_key: raise ValueError("GEMINI_API_KEY is not set")
+
+        client = genai.Client(api_key=api_key)
+        chat = client.chats.create(model="gemini-2.5-flash-lite") #Free-tier
+
+        context_block = "\n\n".join(f"- {c}" for c in found.contexts)
+        user_content = (
+            "Use the following context to answer the question.\n\n"
+            f"Context:\n{context_block}\n\n"
+            f"Question: {question}\n"
+            "Answer concisely using the context above."
+        )
+
+        response = chat.send_message(user_content)
+        answer = (response.text or "").strip()
+
+        return RAGQueryResult(
+            answer=answer,
+            sources=found.sources,
+            num_contexts=len(found.contexts),
+        )
     
+
     question = ctx.event.data["question"]
     top_k = ctx.event.data.get("top_k", 5)
 
-    found = await ctx.step.run("search", lambda:_search(question, top_k), output_type=RAGSearchResult)
 
-    return found.model_dump()
-
+    found = await ctx.step.run(
+        "search",
+        lambda:_search(question, top_k),
+        output_type=RAGSearchResult)
+    
+    result = await ctx.step.run(
+        "answer-with-gemini",
+        lambda: _answer_with_gemini(question, found),
+        output_type=RAGQueryResult,
+    )
+    
+    return result.model_dump()
 
 
 app = FastAPI()
