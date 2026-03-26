@@ -19,3 +19,7 @@ class RAGQueryResult(pydantic.BaseModel):
     answer: str
     sources: list[str]
     num_contexts: int
+
+
+class RAGClearResult(pydantic.BaseModel):
+    message: str

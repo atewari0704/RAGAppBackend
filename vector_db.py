@@ -41,3 +41,18 @@ class QdrantStorage:
                     sources.add(source)
 
         return {"contexts": contexts, "sources": sorted(sources)}
+    
+    
+    def clear_all_collections(self):
+        collections = self.client.get_collections().collections
+        message = "Deleted collections: "
+
+        if not collections:
+            return("No collections found to delete.")
+
+        for c in collections:
+            name = c.name
+            self.client.delete_collection(collection_name=name)
+            message += "" + name + " "
+
+        return message.strip()

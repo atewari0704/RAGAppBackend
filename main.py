@@ -1,5 +1,6 @@
 import logging
 from fastapi import FastAPI, UploadFile, File, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 import inngest
 import inngest.fast_api
@@ -12,7 +13,7 @@ import datetime
 
 #using qdrantStorage as vectorDatabase and we have created custom functions to make life easy
 from vector_db import QdrantStorage
-from custom_types import RAGChunkAndSrc,RAGUpsertResult,RAGSearchResult,RAGQueryResult
+from custom_types import RAGChunkAndSrc,RAGUpsertResult,RAGSearchResult,RAGQueryResult,RAGClearResult
 from data_loader import load_and_chunk_pdf, embed_texts
 
 load_dotenv()
@@ -106,7 +107,29 @@ async def rag_query(ctx: inngest.Context):
     return result.model_dump()
 
 
+@inngest_client.create_function(
+    fn_id="RAG: Clear All Context",
+    trigger=inngest.TriggerEvent(event="rag/clear_all_context"),
+)
+async def rag_clear_all_context(ctx: inngest.Context):
+    def _clear_all_context() -> RAGClearResult:
+        message = QdrantStorage().clear_all_collections()
+        return RAGClearResult(message = message)
+
+    result = await ctx.step.run("clear-all-context", lambda:_clear_all_context(), output_type=RAGClearResult)
+    return result.model_dump()
+
+
+
 app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origin_regex=r"https?://(localhost|127\.0\.0\.1)(:\d+)?",
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 UPLOAD_DIR = "uploads"
@@ -134,10 +157,8 @@ async def upload_pdf(file: UploadFile = File(...)):
     }
 
 
-
-
 # Serve the Inngest endpoint
-inngest.fast_api.serve(app, inngest_client, [rag_ingest_pdf, rag_query])
+inngest.fast_api.serve(app, inngest_client, [rag_ingest_pdf, rag_query, rag_clear_all_context])
 
 
 
