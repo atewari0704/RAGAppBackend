@@ -161,6 +161,6 @@ async def upload_pdf(file: UploadFile = File(...)):
 inngest.fast_api.serve(app, inngest_client, [rag_ingest_pdf, rag_query, rag_clear_all_context])
 
 
-
+# Instead of doing the below you can run ./start-dev.sh 
 # you can run the application by doing: uvicorn main:app
 # you can then run inngest cli via: npx -y inngest-cli@latest dev -u http://127.0.0.1:8000/api/inngest
